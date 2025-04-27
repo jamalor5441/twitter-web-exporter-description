@@ -1415,12 +1415,26 @@
           twe_private_fields: {
             created_at: +parseTwitterDateTime(tweet.legacy.created_at),
             updated_at: Date.now(),
-            media_count: extractTweetMedia(tweet).length
+            media_count: extractTweetMedia(tweet).length,
+            export_count: exportCount + 1 // 更新导出次数
           }
         }));
         return this.tweets().bulkPut(data);
       }).catch(this.logError);
     }
+    async getTweetExportCounts(tweetIds: string[]) {
+    return this.tweets()
+      .where('rest_id')
+      .anyOf(tweetIds)
+      .toArray()
+      .then(tweets => {
+            return tweets.map(tweet => ({
+                tweetId: tweet.rest_id,
+                exportCount: tweet.twe_private_fields?.export_count || 0
+            }));
+        })
+      .catch(this.logError);
+    } 
     async upsertUsers(users) {
       return this.db.transaction("rw", this.users(), () => {
         const data = users.map((user) => ({
@@ -1474,7 +1488,8 @@
         "views.count",
         "legacy.favorited",
         "legacy.retweeted",
-        "legacy.bookmarked"
+        "legacy.bookmarked",
+        'twe_private_fields.export_count'
       ];
       const userIndexPaths = [
         "rest_id",
